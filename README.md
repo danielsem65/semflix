@@ -13,8 +13,6 @@
   <img src="https://img.shields.io/badge/License-MIT-orange?style=for-the-badge">
 </p>
 
-## About SemFlix
-
 **SemFlix** is a modern, responsive movie streaming platform designed to provide a smooth and enjoyable entertainment experience across desktop and mobile devices. Built with performance and simplicity in mind, SemFlix offers an intuitive interface that makes it easy for users to browse, discover, and watch video content with minimal loading times and a clean, visually appealing design.
 
 The application focuses on delivering a seamless user experience through a well-organized layout, responsive navigation, and optimized performance. Whether users are exploring trending titles, searching for specific content, or watching their favorite videos, SemFlix aims to provide a fast, reliable, and engaging platform.
