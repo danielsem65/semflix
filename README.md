@@ -38,9 +38,9 @@
 
 > Add screenshots here
 
-| Home | Movies |
+| Home | Channels |
 |------|---------|
-| ![](screenshots/home.png) | ![](screenshots/movies.png) |
+| ![](screenshots/home.png) | ![](screenshots/movies.PNG) |
 
 ---
 
