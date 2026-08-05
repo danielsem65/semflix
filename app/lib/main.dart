@@ -7,8 +7,6 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
 
-import 'window_chrome.dart';
-
 const String kPlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
 const String kLastChannelKey = 'semflix_last_channel';
 
@@ -42,8 +40,6 @@ Future<void> _initWindowChrome() async {
   windowManager.waitUntilReadyToShow(options, () async {
     await windowManager.show();
     await windowManager.focus();
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    WindowsChrome.applyRoundedCorners();
   });
 }
 
@@ -103,10 +99,6 @@ class _HomeScreenState extends State<HomeScreen> {
     _player.stream.buffering.listen((b) {
       if (mounted) setState(() => _buffering = b);
     });
-
-    if (Platform.isWindows) {
-      windowManager.addListener(_WindowChromeListener());
-    }
 
     _load();
   }
@@ -558,23 +550,6 @@ class _HomeScreenState extends State<HomeScreen> {
       onPanStart: (_) => windowManager.startDragging(),
       child: header,
     );
-  }
-}
-
-class _WindowChromeListener extends WindowListener {
-  @override
-  void onWindowResize() {
-    WindowsChrome.applyRoundedCorners();
-  }
-
-  @override
-  void onWindowMaximize() {
-    WindowsChrome.clearRoundedCorners();
-  }
-
-  @override
-  void onWindowUnmaximize() {
-    WindowsChrome.applyRoundedCorners();
   }
 }
 
