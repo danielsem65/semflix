@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎬 SemFlix
+# 🎬 SemFlix Movies - Free Premium IPTV Channels
 
 ### Watch Movies & Videos Online for Free
 
