@@ -38,8 +38,9 @@ class WindowsChrome {
           int Function(ffi.Pointer<ffi.Void>, int, ffi.Pointer<ffi.Void>, int)>(
           'DwmSetWindowAttribute');
 
+  static const int _immersiveDarkMode = 20;
   static const int _cornerPreference = 33;
-  static const int _round = 2;
+  static const int _cornerDoNotRound = 1;
   static const int _radius = 6;
 
   static ffi.Pointer<ffi.Void>? _hwnd() {
@@ -49,15 +50,20 @@ class WindowsChrome {
     return hwnd == ffi.nullptr ? null : hwnd;
   }
 
+  static void _dwmSetInt(int attribute, int value) {
+    final pref = calloc<ffi.Int32>();
+    pref.value = value;
+    _dwmSetWindowAttribute(
+        _hwnd() ?? ffi.nullptr, attribute, pref.cast<ffi.Void>(), 4);
+    calloc.free(pref);
+  }
+
   static void applyRoundedCorners() {
     final hwnd = _hwnd();
     if (hwnd == null) return;
 
-    final pref = calloc<ffi.Int32>();
-    pref.value = _round;
-    final hr = _dwmSetWindowAttribute(hwnd, _cornerPreference, pref.cast<ffi.Void>(), 4);
-    calloc.free(pref);
-    if (hr == 0) return;
+    _dwmSetInt(_immersiveDarkMode, 1);
+    _dwmSetInt(_cornerPreference, _cornerDoNotRound);
 
     final rect = calloc<ffi.Int32>(4);
     if (_getWindowRect(hwnd, rect) == 0) {

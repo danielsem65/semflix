@@ -454,10 +454,11 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: _load,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFF2E63),
-              ),
-              child: const Text('Retry'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF2E63),
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Retry'),
             ),
           ],
         ),
@@ -478,6 +479,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: const Text('Browse Channels'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF2E63),
+                  foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
