@@ -155,6 +155,6 @@ This project is licensed under the **MIT License**.
 
 **Watch • Stream • Enjoy**
 
-Made with ❤️ by the SemFlix Team
+Made with ❤️ by SemDev Studio
 
 </div>
