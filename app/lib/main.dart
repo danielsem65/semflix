@@ -84,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
-    _controller.dispose();
+    _player.dispose();
     super.dispose();
   }
 
@@ -630,7 +630,6 @@ class _ChannelTile extends StatelessWidget {
                       fit: BoxFit.contain,
                       width: 46,
                       height: 46,
-                      padding: const EdgeInsets.all(4),
                       errorBuilder: (_, __, ___) => const Center(
                         child: Icon(Icons.tv, color: Colors.black38, size: 22),
                       ),
