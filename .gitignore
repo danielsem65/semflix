@@ -1,0 +1,13 @@
+app/build/
+app/.dart_tool/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
+app/.packages
+app/.pub/
+app/android/.gradle/
+app/android/local.properties
+app/windows/flutter/ephemeral/
+*.iml
+.idea/
+.vscode/
+.DS_Store

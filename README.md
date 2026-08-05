@@ -154,6 +154,26 @@ This project is licensed under the **MIT License**.
 
 ---
 
+## 📱 Native Apps (Android, Android TV, Windows)
+
+In addition to the web player, SemFlix ships as a native app built with **Flutter**:
+
+- Android (APK/AAB) with **Android TV** support (leanback launcher, TV banner)
+- Windows desktop app
+- Free IPTV streaming from `https://iptv-org.github.io/iptv/index.m3u` via libmpv (`media_kit`)
+- Search, category filter, and last-channel auto-resume
+
+Source lives in `app/` (`lib/main.dart`, `pubspec.yaml`). Native scaffolding is generated
+by CI, then the TV manifest/banner from `platform/android/` are applied. Everything is
+compiled by GitHub Actions on push to `main`:
+
+1. **Android job** (ubuntu): `flutter build apk --release` + `flutter build appbundle --release`
+2. **Windows job** (windows): `flutter build windows --release`
+
+Artifacts (APK, AAB, Windows folder) are uploaded to the **Actions** run page.
+
+---
+
 <div align="center">
 
 ### 🎬 SemFlix Movies

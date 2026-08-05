@@ -1,0 +1,83 @@
+name: Build SemFlix App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    name: Android (APK + AAB)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate platform scaffolding
+        run: flutter create . --platforms=android --project-name semflix --org com.semdev
+
+      - name: Apply Android TV manifest
+        run: cp ../platform/android/AndroidManifest.xml android/app/src/main/AndroidManifest.xml
+
+      - name: Copy TV banner resource
+        run: cp ../platform/android/tv_banner.xml android/app/src/main/res/drawable/tv_banner.xml
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Build AppBundle
+        run: flutter build appbundle --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: semflix-apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: semflix-aab
+          path: app/build/app/outputs/bundle/release/app-release.aab
+
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Generate platform scaffolding
+        run: flutter create . --platforms=windows --project-name semflix --org com.semdev
+
+      - name: Build Windows
+        run: flutter build windows --release
+
+      - name: Upload Windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: semflix-windows
+          path: app/build/windows/x64/runner/Release
