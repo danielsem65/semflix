@@ -11,40 +11,35 @@ class WindowsChrome {
 
   static final ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Uint16>, ffi.Pointer<ffi.Uint16>)
       _findWindow = _user32.lookupFunction<
-          ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Uint16>, ffi.Pointer<ffi.Uint16>),
+          ffi.NativeFunction<
+              ffi.Pointer<ffi.Void> Function(
+                  ffi.Pointer<ffi.Uint16>, ffi.Pointer<ffi.Uint16>)>,
           ffi.Pointer<ffi.Void> Function(
               ffi.Pointer<ffi.Uint16>, ffi.Pointer<ffi.Uint16>)>('FindWindowW');
 
-  static final ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Int32>) _getWindowRect =
+  static final int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Int32>) _getWindowRect =
       _user32.lookupFunction<
-              ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Int32>),
-              ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Int32>)>(
-          'GetWindowRect');
+          ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Int32>)>,
+          int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Int32>)>('GetWindowRect');
 
-  static final ffi.Int32 Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Int32)
-      _setWindowRgn = _user32.lookupFunction<
-              ffi.Int32 Function(
-                  ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Int32),
-              ffi.Int32 Function(
-                  ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Int32)>(
-          'SetWindowRgn');
+  static final int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, int) _setWindowRgn =
+      _user32.lookupFunction<
+          ffi.NativeFunction<ffi.Int32 Function(
+              ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Int32)>,
+          int Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, int)>('SetWindowRgn');
 
-  static final ffi.Pointer<ffi.Void> Function(
-          ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)
-      _createRoundRectRgn = _gdi32.lookupFunction<
-              ffi.Pointer<ffi.Void> Function(
-                  ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32),
-              ffi.Pointer<ffi.Void> Function(
-                  ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>(
-          'CreateRoundRectRgn');
+  static final ffi.Pointer<ffi.Void> Function(int, int, int, int, int, int) _createRoundRectRgn =
+      _gdi32.lookupFunction<
+          ffi.NativeFunction<ffi.Pointer<ffi.Void> Function(
+              ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32, ffi.Int32)>,
+          ffi.Pointer<ffi.Void> Function(
+              int, int, int, int, int, int)>('CreateRoundRectRgn');
 
-  static final ffi.Int32 Function(
-          ffi.Pointer<ffi.Void>, ffi.Uint32, ffi.Pointer<ffi.Void>, ffi.Uint32)
+  static final int Function(ffi.Pointer<ffi.Void>, int, ffi.Pointer<ffi.Void>, int)
       _dwmSetWindowAttribute = _dwmapi.lookupFunction<
-              ffi.Int32 Function(
-                  ffi.Pointer<ffi.Void>, ffi.Uint32, ffi.Pointer<ffi.Void>, ffi.Uint32),
-              ffi.Int32 Function(
-                  ffi.Pointer<ffi.Void>, ffi.Uint32, ffi.Pointer<ffi.Void>, ffi.Uint32)>(
+          ffi.NativeFunction<ffi.Int32 Function(
+              ffi.Pointer<ffi.Void>, ffi.Uint32, ffi.Pointer<ffi.Void>, ffi.Uint32)>,
+          int Function(ffi.Pointer<ffi.Void>, int, ffi.Pointer<ffi.Void>, int)>(
           'DwmSetWindowAttribute');
 
   static const int _cornerPreference = 33;
@@ -53,8 +48,8 @@ class WindowsChrome {
 
   static ffi.Pointer<ffi.Void>? _hwnd() {
     final title = 'SemFlix TV'.toNativeUtf16();
-    final hwnd = _findWindow(ffi.nullptr, title);
-    title.free();
+    final hwnd = _findWindow(ffi.nullptr, title.cast<ffi.Uint16>());
+    calloc.free(title);
     return hwnd == ffi.nullptr ? null : hwnd;
   }
 
@@ -62,8 +57,11 @@ class WindowsChrome {
     final hwnd = _hwnd();
     if (hwnd == null) return;
 
-    final pref = ffi.Int32(_round);
-    final hr = _dwmSetWindowAttribute(hwnd, _cornerPreference, &pref.cast(), sizeOf<ffi.Int32>());
+    final pref = calloc<ffi.Int32>();
+    pref.value = _round;
+    final hr = _dwmSetWindowAttribute(hwnd, _cornerPreference, pref.cast<ffi.Void>(),
+        sizeOf<ffi.Int32>());
+    calloc.free(pref);
     if (hr == 0) return;
 
     final rect = calloc<ffi.Int32>(4);
