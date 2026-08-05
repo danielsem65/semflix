@@ -499,9 +499,6 @@ class _HomeScreenState extends State<HomeScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFF2E63), Color(0xFFFF7A18)],
-              ),
               borderRadius: BorderRadius.circular(13),
               boxShadow: [
                 BoxShadow(
@@ -510,7 +507,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            child: const Center(child: Icon(Icons.play_arrow, color: Colors.white)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: Image.asset(
+                'assets/icon/logo.png',
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.play_arrow, color: Colors.white),
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Column(
