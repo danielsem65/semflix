@@ -35,6 +35,9 @@ jobs:
       - name: Copy TV banner resource
         run: cp ../platform/android/tv_banner.xml android/app/src/main/res/drawable/tv_banner.xml
 
+      - name: Copy dark launch background
+        run: cp ../platform/android/launch_background.xml android/app/src/main/res/drawable/launch_background.xml
+
       - name: Generate app icons
         run: dart run flutter_launcher_icons -f flutter_launcher_icons_android.yaml
 
