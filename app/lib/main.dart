@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:window_manager/window_manager.dart';
+
+import 'window_chrome.dart';
 
 const String kPlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
 const String kLastChannelKey = 'semflix_last_channel';
@@ -15,10 +20,31 @@ class Channel {
   Channel({required this.name, required this.logo, required this.group, required this.url});
 }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  if (Platform.isWindows) {
+    await _initWindowChrome();
+  }
   runApp(const SemFlixApp());
+}
+
+Future<void> _initWindowChrome() async {
+  await windowManager.ensureInitialized();
+  final options = WindowOptions(
+    size: const Size(1280, 720),
+    center: true,
+    title: 'SemFlix TV',
+    backgroundColor: const Color(0xFF05060A),
+    titleBarStyle: TitleBarStyle.hidden,
+    skipTaskbar: false,
+  );
+  windowManager.waitUntilReadyToShow(options, () async {
+    await windowManager.show();
+    await windowManager.focus();
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    WindowsChrome.applyRoundedCorners();
+  });
 }
 
 class SemFlixApp extends StatelessWidget {
@@ -77,6 +103,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _player.stream.buffering.listen((b) {
       if (mounted) setState(() => _buffering = b);
     });
+
+    if (Platform.isWindows) {
+      windowManager.addListener(_WindowChromeListener());
+    }
 
     _load();
   }
@@ -445,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ElevatedButton.icon(
                 onPressed: () => _openMobileDrawer(context),
                 icon: const Icon(Icons.grid_view),
-                label: const Text('BROWSE CHANNELS'),
+                label: const Text('Browse Channels'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF2E63),
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -462,7 +492,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHeader() {
     final count = _channels.length;
-    return Container(
+    final header = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: const BoxDecoration(
         color: Color(0xFF0B0E16),
@@ -513,7 +543,53 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           const SizedBox(width: 8),
           const _LiveBadge(),
+          if (Platform.isWindows) ...[
+            const SizedBox(width: 10),
+            const _CloseButton(),
+          ],
         ],
+      ),
+    );
+    if (!Platform.isWindows) return header;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onPanStart: (_) => windowManager.startDragging(),
+      child: header,
+    );
+  }
+}
+
+class _WindowChromeListener extends WindowListener {
+  @override
+  void onWindowResize() {
+    WindowsChrome.applyRoundedCorners();
+  }
+
+  @override
+  void onWindowMaximize() {
+    WindowsChrome.clearRoundedCorners();
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    WindowsChrome.applyRoundedCorners();
+  }
+}
+
+class _CloseButton extends StatelessWidget {
+  const _CloseButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(9),
+        onTap: () => windowManager.destroy(),
+        child: const Padding(
+          padding: EdgeInsets.all(7),
+          child: Icon(Icons.close, size: 19, color: Colors.grey),
+        ),
       ),
     );
   }
