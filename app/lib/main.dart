@@ -40,6 +40,7 @@ Future<void> _initWindowChrome() async {
   windowManager.waitUntilReadyToShow(options, () async {
     await windowManager.show();
     await windowManager.focus();
+    await windowManager.setResizable(false);
   });
 }
 
@@ -539,7 +540,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const _LiveBadge(),
           if (Platform.isWindows) ...[
             const SizedBox(width: 10),
-            const _CloseButton(),
+            const _WindowButtons(),
           ],
         ],
       ),
@@ -553,8 +554,76 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-class _CloseButton extends StatelessWidget {
-  const _CloseButton();
+class _WindowButtons extends StatefulWidget {
+  const _WindowButtons();
+
+  @override
+  State<_WindowButtons> createState() => _WindowButtonsState();
+}
+
+class _WindowButtonsState extends State<_WindowButtons> {
+  bool _maximized = false;
+  late final WindowListener _listener;
+
+  @override
+  void initState() {
+    super.initState();
+    _listener = _MaximizeListener(this);
+    windowManager.addListener(_listener);
+    windowManager.isMaximized().then((v) {
+      if (mounted) setState(() => _maximized = v);
+    });
+  }
+
+  @override
+  void dispose() {
+    windowManager.removeListener(_listener);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _WindowButton(
+          icon: _maximized ? Icons.filter_none : Icons.crop_square,
+          onTap: () {
+            if (_maximized) {
+              windowManager.unmaximize();
+            } else {
+              windowManager.maximize();
+            }
+          },
+        ),
+        const SizedBox(width: 2),
+        _WindowButton(icon: Icons.close, onTap: () => windowManager.close()),
+      ],
+    );
+  }
+}
+
+class _MaximizeListener extends WindowListener {
+  _MaximizeListener(this.state);
+
+  final _WindowButtonsState state;
+
+  @override
+  void onWindowMaximize() {
+    if (state.mounted) state.setState(() => state._maximized = true);
+  }
+
+  @override
+  void onWindowUnmaximize() {
+    if (state.mounted) state.setState(() => state._maximized = false);
+  }
+}
+
+class _WindowButton extends StatelessWidget {
+  const _WindowButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -562,10 +631,10 @@ class _CloseButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(9),
-        onTap: () => windowManager.destroy(),
-        child: const Padding(
-          padding: EdgeInsets.all(7),
-          child: Icon(Icons.close, size: 19, color: Colors.grey),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(7),
+          child: Icon(icon, size: 18, color: Colors.grey),
         ),
       ),
     );
