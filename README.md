@@ -36,7 +36,7 @@
 
 ## 📸 Preview
 
-> Add screenshots here
+> SemFlix Screenshots
 
 | Home | Channels |
 |------|---------|
