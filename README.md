@@ -30,7 +30,7 @@ As the project continues to evolve, additional features, interface improvements,
 
 ## ✨ Features
 
-- 🎥 Watch free movies and videos
+- 🎥 Watch free movies and Live videos
 - ⚡ Fast and responsive UI
 - 📱 Mobile-friendly design
 - 🔍 Easy movie browsing
@@ -55,7 +55,7 @@ As the project continues to evolve, additional features, interface improvements,
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/semflix.git
+git clone https://github.com/danielsem65/semflix.git
 ```
 
 Go into the project folder:
@@ -84,7 +84,6 @@ npm run dev
 - CSS3
 - JavaScript
 - React
-- Vite
 - Netlify
 
 ---
@@ -102,13 +101,13 @@ semflix/
 │   └── styles/
 │
 ├── package.json
-├── vite.config.js
+├── semflix.config.js
 └── README.md
 ```
 
 ---
 
-## 🌍 Live Demo
+## 🌍 Live Channels
 
 Visit the website:
 
@@ -157,7 +156,7 @@ This project is licensed under the **MIT License**.
 
 <div align="center">
 
-### 🎬 SemFlix
+### 🎬 SemFlix Movies
 
 **Watch • Stream • Enjoy**
 
