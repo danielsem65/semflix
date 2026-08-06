@@ -1,5 +1,9 @@
 <div align="center">
 
+<p align="center">
+  <img src="https://github.com/danielsem65/semflix/releases/download/v1.0.0/semflix-logo.png" width="200" alt="SemFlix TV">
+</p>
+
 # 🎬 SemFlix Movies - Free Premium IPTV Channels
 
 ### Watch Movies & Videos Online for Free
