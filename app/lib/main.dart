@@ -180,6 +180,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Player _player;
   late final VideoController _controller;
   final _searchCtrl = TextEditingController();
+  final _sidebarScroll = ScrollController();
 
   @override
   void initState() {
@@ -197,6 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _sidebarScroll.dispose();
     _player.dispose();
     super.dispose();
   }
@@ -326,14 +328,40 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => FractionallySizedBox(
-        heightFactor: 0.86,
-        child: _buildSidebar(compact: true),
+      builder: (_) => StatefulBuilder(
+        builder: (_, sheetSetState) => FractionallySizedBox(
+          heightFactor: 0.86,
+          child: _buildSidebar(
+            compact: true,
+            refresh: () => sheetSetState(() {}),
+            scrollController: _sidebarScroll,
+          ),
+        ),
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToCurrentChannel();
+      if (_current != null && !_sidebarScroll.hasClients) {
+        Future.delayed(const Duration(milliseconds: 150),
+            () => _scrollToCurrentChannel());
+      }
+    });
   }
 
-  Widget _buildSidebar({bool compact = false}) {
+  void _scrollToCurrentChannel() {
+    if (_current == null || !_sidebarScroll.hasClients) return;
+    final idx = _filtered.indexWhere((c) => c.url == _current!.url);
+    if (idx < 0) return;
+    final target = (idx * 68.0) - 140;
+    final max = _sidebarScroll.position.maxScrollExtent;
+    _sidebarScroll.jumpTo(target.clamp(0.0, max).toDouble());
+  }
+
+  Widget _buildSidebar({
+    bool compact = false,
+    VoidCallback? refresh,
+    ScrollController? scrollController,
+  }) {
     return Column(
       children: [
         if (compact)
@@ -353,6 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onChanged: (v) {
               _query = v.trim();
               _filter();
+              refresh?.call();
             },
             decoration: InputDecoration(
               hintText: 'Search channels...',
@@ -382,6 +411,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSelected: (_) {
                     setState(() => _activeCat = c);
                     _filter();
+                    refresh?.call();
                   },
                   selectedColor: const Color(0xFFFF2E63),
                   backgroundColor: const Color(0x0DFFFFFF),
@@ -408,6 +438,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(color: Colors.grey)),
                 )
               : ListView.builder(
+                  controller: scrollController,
+                  itemExtent: 68,
                   padding: const EdgeInsets.only(bottom: 24),
                   itemCount: _filtered.length,
                   itemBuilder: (_, i) {
