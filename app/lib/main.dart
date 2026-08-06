@@ -180,7 +180,6 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Player _player;
   late final VideoController _controller;
   final _searchCtrl = TextEditingController();
-  final _sidebarScroll = ScrollController();
 
   @override
   void initState() {
@@ -198,7 +197,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
-    _sidebarScroll.dispose();
     _player.dispose();
     super.dispose();
   }
@@ -328,40 +326,34 @@ class _HomeScreenState extends State<HomeScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (_) => StatefulBuilder(
-        builder: (_, sheetSetState) => FractionallySizedBox(
-          heightFactor: 0.86,
-          child: _buildSidebar(
-            compact: true,
-            refresh: () => sheetSetState(() {}),
-            scrollController: _sidebarScroll,
-          ),
+      builder: (_) => FractionallySizedBox(
+        heightFactor: 0.86,
+        child: _ChannelSidebar(
+          compact: true,
+          channels: _channels,
+          cats: _cats,
+          initialCat: _activeCat,
+          initialQuery: _query,
+          current: _current,
+          searchCtrl: _searchCtrl,
+          onCatChanged: (c) {
+            setState(() => _activeCat = c);
+            _filter();
+          },
+          onSearch: (q) {
+            setState(() => _query = q);
+            _filter();
+          },
+          onPlay: (c) {
+            Navigator.of(context).pop();
+            _play(c);
+          },
         ),
       ),
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToCurrentChannel();
-      if (_current != null && !_sidebarScroll.hasClients) {
-        Future.delayed(const Duration(milliseconds: 150),
-            () => _scrollToCurrentChannel());
-      }
-    });
   }
 
-  void _scrollToCurrentChannel() {
-    if (_current == null || !_sidebarScroll.hasClients) return;
-    final idx = _filtered.indexWhere((c) => c.url == _current!.url);
-    if (idx < 0) return;
-    final target = (idx * 68.0) - 140;
-    final max = _sidebarScroll.position.maxScrollExtent;
-    _sidebarScroll.jumpTo(target.clamp(0.0, max).toDouble());
-  }
-
-  Widget _buildSidebar({
-    bool compact = false,
-    VoidCallback? refresh,
-    ScrollController? scrollController,
-  }) {
+  Widget _buildSidebar({bool compact = false}) {
     return Column(
       children: [
         if (compact)
@@ -381,7 +373,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onChanged: (v) {
               _query = v.trim();
               _filter();
-              refresh?.call();
             },
             decoration: InputDecoration(
               hintText: 'Search channels...',
@@ -411,7 +402,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   onSelected: (_) {
                     setState(() => _activeCat = c);
                     _filter();
-                    refresh?.call();
                   },
                   selectedColor: const Color(0xFFFF2E63),
                   backgroundColor: const Color(0x0DFFFFFF),
@@ -438,8 +428,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(color: Colors.grey)),
                 )
               : ListView.builder(
-                  controller: scrollController,
-                  itemExtent: 68,
                   padding: const EdgeInsets.only(bottom: 24),
                   itemCount: _filtered.length,
                   itemBuilder: (_, i) {
@@ -832,6 +820,183 @@ class _LiveBadgeState extends State<_LiveBadge>
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ChannelSidebar extends StatefulWidget {
+  const _ChannelSidebar({
+    required this.compact,
+    required this.channels,
+    required this.cats,
+    required this.initialCat,
+    required this.initialQuery,
+    required this.current,
+    required this.searchCtrl,
+    required this.onCatChanged,
+    required this.onSearch,
+    required this.onPlay,
+  });
+
+  final bool compact;
+  final List<Channel> channels;
+  final List<String> cats;
+  final String initialCat;
+  final String initialQuery;
+  final Channel? current;
+  final TextEditingController searchCtrl;
+  final ValueChanged<String> onCatChanged;
+  final ValueChanged<String> onSearch;
+  final ValueChanged<Channel> onPlay;
+
+  @override
+  State<_ChannelSidebar> createState() => _ChannelSidebarState();
+}
+
+class _ChannelSidebarState extends State<_ChannelSidebar> {
+  final ScrollController _scroll = ScrollController();
+  late String _activeCat;
+  late String _query;
+  late List<Channel> _filtered;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeCat = widget.initialCat;
+    _query = widget.initialQuery;
+    _applyFilter();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrent());
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _applyFilter() {
+    final q = _query.toLowerCase();
+    _filtered = widget.channels.where((c) {
+      final catOk = _activeCat == 'All' || c.group == _activeCat;
+      final qOk = q.isEmpty ||
+          c.name.toLowerCase().contains(q) ||
+          c.group.toLowerCase().contains(q);
+      return catOk && qOk;
+    }).toList();
+  }
+
+  void _selectCat(String c) {
+    setState(() {
+      _activeCat = c;
+      _applyFilter();
+    });
+    widget.onCatChanged(c);
+  }
+
+  void _onSearch(String v) {
+    final q = v.trim();
+    setState(() {
+      _query = q;
+      _applyFilter();
+    });
+    widget.onSearch(q);
+  }
+
+  void _scrollToCurrent() {
+    if (widget.current == null || !_scroll.hasClients) return;
+    final idx = _filtered.indexWhere((c) => c.url == widget.current!.url);
+    if (idx < 0) return;
+    final target = (idx * 68.0) - 140;
+    final max = _scroll.position.maxScrollExtent;
+    _scroll.jumpTo(target.clamp(0.0, max).toDouble());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        if (widget.compact)
+          Container(
+            width: 44,
+            height: 5,
+            margin: const EdgeInsets.only(top: 10, bottom: 6),
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(5),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: TextField(
+            controller: widget.searchCtrl,
+            onChanged: _onSearch,
+            decoration: InputDecoration(
+              hintText: 'Search channels...',
+              prefixIcon: const Icon(Icons.search),
+              filled: true,
+              fillColor: const Color(0x0DFFFFFF),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 46,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            children: widget.cats.map((c) {
+              final active = c == _activeCat;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(c),
+                  selected: active,
+                  onSelected: (_) => _selectCat(c),
+                  selectedColor: const Color(0xFFFF2E63),
+                  backgroundColor: const Color(0x0DFFFFFF),
+                  labelStyle: TextStyle(
+                    color: active ? Colors.white : Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                    side: BorderSide(
+                      color: active ? const Color(0xFFFF2E63) : Colors.white12,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: _filtered.isEmpty
+              ? const Center(
+                  child: Text('No channels found',
+                      style: TextStyle(color: Colors.grey)),
+                )
+              : ListView.builder(
+                  controller: _scroll,
+                  itemExtent: 68,
+                  padding: const EdgeInsets.only(bottom: 24),
+                  itemCount: _filtered.length,
+                  itemBuilder: (_, i) {
+                    final c = _filtered[i];
+                    final selected = widget.current?.url == c.url;
+                    return _ChannelTile(
+                      channel: c,
+                      selected: selected,
+                      onTap: () => widget.onPlay(c),
+                    );
+                  },
+                ),
+        ),
+      ],
     );
   }
 }
