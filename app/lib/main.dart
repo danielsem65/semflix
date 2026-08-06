@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:floating/floating.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:media_kit/media_kit.dart';
@@ -9,6 +10,8 @@ import 'package:window_manager/window_manager.dart';
 
 const String kPlaylistUrl = 'https://iptv-org.github.io/iptv/index.m3u';
 const String kLastChannelKey = 'semflix_last_channel';
+const String kFavoritesKey = 'semflix_favorites';
+const String kPlaylistUrlKey = 'semflix_playlist_url';
 
 class Channel {
   final String name;
@@ -180,6 +183,9 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Player _player;
   late final VideoController _controller;
   final _searchCtrl = TextEditingController();
+  final Floating _floating = Floating();
+  String _playlistUrl = kPlaylistUrl;
+  Set<String> _favorites = <String>{};
 
   @override
   void initState() {
@@ -207,18 +213,24 @@ class _HomeScreenState extends State<HomeScreen> {
       _error = null;
     });
     try {
+      final savedUrl = await _savedPlaylistUrl();
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        _playlistUrl = savedUrl;
+      }
       final text = await http
-          .get(Uri.parse(kPlaylistUrl), headers: {'accept': 'text/plain'})
+          .get(Uri.parse(_playlistUrl), headers: {'accept': 'text/plain'})
           .timeout(const Duration(seconds: 40))
           .then((r) => r.body);
 
       final parsed = _parseM3U(text);
+      final savedFavs = await _savedFavorites();
 
       if (!mounted) return;
       setState(() {
         _channels = parsed;
         _filtered = parsed;
         _cats = _buildCats(parsed);
+        _favorites = savedFavs;
         _loading = false;
       });
 
@@ -244,7 +256,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     final keys = map.keys.toList()
       ..sort((a, b) => (map[b] ?? 0).compareTo(map[a] ?? 0));
-    return ['All', ...keys.take(30)];
+    return ['All', 'Favorites', ...keys.take(30)];
   }
 
   List<Channel> _parseM3U(String text) {
@@ -296,6 +308,132 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (_) {}
   }
 
+  Future<Set<String>> _savedFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return (prefs.getStringList(kFavoritesKey) ?? <String>[]).toSet();
+    } catch (_) {
+      return <String>{};
+    }
+  }
+
+  Future<void> _saveFavorites() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(kFavoritesKey, _favorites.toList());
+    } catch (_) {}
+  }
+
+  void _toggleFavorite(Channel c) {
+    setState(() {
+      if (!_favorites.remove(c.url)) {
+        _favorites.add(c.url);
+      }
+    });
+    _saveFavorites();
+  }
+
+  Future<String?> _savedPlaylistUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(kPlaylistUrlKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _setPlaylistUrl(String url) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(kPlaylistUrlKey, url);
+    } catch (_) {}
+  }
+
+  Future<void> _clearPlaylistUrl() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(kPlaylistUrlKey);
+    } catch (_) {}
+  }
+
+  Future<void> _enterPip() async {
+    try {
+      if (await _floating.isPipAvailable) {
+        await _floating.enable(const ImmediatePiP());
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _openSettings() async {
+    final urlCtrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF141826),
+          title: const Text('Playlist Settings'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: urlCtrl,
+                keyboardType: TextInputType.url,
+                decoration: const InputDecoration(
+                  labelText: 'M3U Playlist URL',
+                  hintText: 'https://example.com/playlist.m3u',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _playlistUrl == kPlaylistUrl
+                    ? 'Currently using the default iptv-org playlist.'
+                    : 'Currently using a custom playlist.',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop('reset'),
+              child: const Text('Reset'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop('save'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFFF2E63),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    if (result == null) return;
+    if (result == 'reset') {
+      await _clearPlaylistUrl();
+      _playlistUrl = kPlaylistUrl;
+      await _load();
+      return;
+    }
+    final url = urlCtrl.text.trim();
+    if (url.isEmpty || !url.startsWith('http')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid http(s) URL.')),
+      );
+      return;
+    }
+    await _setPlaylistUrl(url);
+    _playlistUrl = url;
+    await _load();
+  }
+
   void _play(Channel c) {
     _remember(c);
     setState(() {
@@ -309,7 +447,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void _filter() {
     final q = _query.toLowerCase();
     final list = _channels.where((c) {
-      final catOk = _activeCat == 'All' || c.group == _activeCat;
+      final catOk = _activeCat == 'All'
+          ? true
+          : _activeCat == 'Favorites'
+              ? _favorites.contains(c.url)
+              : c.group == _activeCat;
       final qOk = q.isEmpty ||
           c.name.toLowerCase().contains(q) ||
           c.group.toLowerCase().contains(q);
@@ -336,6 +478,8 @@ class _HomeScreenState extends State<HomeScreen> {
           initialQuery: _query,
           current: _current,
           searchCtrl: _searchCtrl,
+          favorites: _favorites,
+          onToggleFavorite: _toggleFavorite,
           onCatChanged: (c) {
             setState(() => _activeCat = c);
             _filter();
@@ -440,6 +584,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (compact) Navigator.of(context).pop();
                         _play(c);
                       },
+                      isFavorite: _favorites.contains(c.url),
+                      onToggleFavorite: () => _toggleFavorite(c),
                     );
                   },
                 ),
@@ -494,38 +640,58 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildPipContent() {
+    return Container(
+      color: Colors.black,
+      child: Stack(
+        children: [
+          Positioned.fill(child: Video(controller: _controller)),
+          if (_buffering)
+            const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation(Color(0xFFFF2E63)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: LayoutBuilder(builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 720;
-                return Row(
-                  children: [
-                    if (wide)
-                      SizedBox(
-                        width: 360,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF0B0E16),
+    return PiPSwitcher(
+      childWhenDisabled: Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              Expanded(
+                child: LayoutBuilder(builder: (context, constraints) {
+                  final wide = constraints.maxWidth >= 720;
+                  return Row(
+                    children: [
+                      if (wide)
+                        SizedBox(
+                          width: 360,
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF0B0E16),
+                            ),
+                            child: _buildSidebar(),
                           ),
-                          child: _buildSidebar(),
                         ),
+                      Expanded(
+                        child: _buildMainZone(context, wide),
                       ),
-                    Expanded(
-                      child: _buildMainZone(context, wide),
-                    ),
-                  ],
-                );
-              }),
-            ),
-          ],
+                    ],
+                  );
+                }),
+              ),
+            ],
+          ),
         ),
       ),
+      childWhenEnabled: _buildPipContent(),
     );
   }
 
@@ -654,6 +820,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           const SizedBox(width: 8),
           const _LiveBadge(),
+          if (Platform.isAndroid) ...[
+            const SizedBox(width: 8),
+            _HeaderIconButton(
+              icon: Icons.picture_in_picture_alt,
+              tooltip: 'Picture in Picture',
+              onTap: _enterPip,
+            ),
+          ],
+          if (Platform.isAndroid || Platform.isWindows) ...[
+            const SizedBox(width: 8),
+            _HeaderIconButton(
+              icon: Icons.settings,
+              tooltip: 'Playlist Settings',
+              onTap: _openSettings,
+            ),
+          ],
           if (Platform.isWindows) ...[
             const SizedBox(width: 10),
             const _WindowButtons(),
@@ -757,6 +939,37 @@ class _WindowButton extends StatelessWidget {
   }
 }
 
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: const Color(0x0DFFFFFF),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(icon, size: 20, color: Colors.white),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LiveBadge extends StatefulWidget {
   const _LiveBadge();
 
@@ -833,6 +1046,8 @@ class _ChannelSidebar extends StatefulWidget {
     required this.initialQuery,
     required this.current,
     required this.searchCtrl,
+    required this.favorites,
+    required this.onToggleFavorite,
     required this.onCatChanged,
     required this.onSearch,
     required this.onPlay,
@@ -845,6 +1060,8 @@ class _ChannelSidebar extends StatefulWidget {
   final String initialQuery;
   final Channel? current;
   final TextEditingController searchCtrl;
+  final Set<String> favorites;
+  final ValueChanged<Channel> onToggleFavorite;
   final ValueChanged<String> onCatChanged;
   final ValueChanged<String> onSearch;
   final ValueChanged<Channel> onPlay;
@@ -869,6 +1086,14 @@ class _ChannelSidebarState extends State<_ChannelSidebar> {
   }
 
   @override
+  void didUpdateWidget(covariant _ChannelSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!setEquals(oldWidget.favorites, widget.favorites)) {
+      _applyFilter();
+    }
+  }
+
+  @override
   void dispose() {
     _scroll.dispose();
     super.dispose();
@@ -877,7 +1102,11 @@ class _ChannelSidebarState extends State<_ChannelSidebar> {
   void _applyFilter() {
     final q = _query.toLowerCase();
     _filtered = widget.channels.where((c) {
-      final catOk = _activeCat == 'All' || c.group == _activeCat;
+      final catOk = _activeCat == 'All'
+          ? true
+          : _activeCat == 'Favorites'
+              ? widget.favorites.contains(c.url)
+              : c.group == _activeCat;
       final qOk = q.isEmpty ||
           c.name.toLowerCase().contains(q) ||
           c.group.toLowerCase().contains(q);
@@ -992,6 +1221,8 @@ class _ChannelSidebarState extends State<_ChannelSidebar> {
                       channel: c,
                       selected: selected,
                       onTap: () => widget.onPlay(c),
+                      isFavorite: widget.favorites.contains(c.url),
+                      onToggleFavorite: () => widget.onToggleFavorite(c),
                     );
                   },
                 ),
@@ -1004,12 +1235,16 @@ class _ChannelSidebarState extends State<_ChannelSidebar> {
 class _ChannelTile extends StatelessWidget {
   final Channel channel;
   final bool selected;
+  final bool isFavorite;
   final VoidCallback onTap;
+  final VoidCallback onToggleFavorite;
 
   const _ChannelTile({
     required this.channel,
     required this.selected,
+    required this.isFavorite,
     required this.onTap,
+    required this.onToggleFavorite,
   });
 
   @override
@@ -1072,6 +1307,18 @@ class _ChannelTile extends StatelessWidget {
                             const TextStyle(fontSize: 11.5, color: Colors.grey),
                       ),
                     ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: onToggleFavorite,
+                  tooltip:
+                      isFavorite ? 'Remove from Favorites' : 'Add to Favorites',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+                  icon: Icon(
+                    isFavorite ? Icons.star : Icons.star_border,
+                    size: 22,
+                    color: isFavorite ? const Color(0xFFFF2E63) : Colors.grey,
                   ),
                 ),
               ],
